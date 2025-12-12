@@ -1,0 +1,5 @@
+{
+  "name": "JEE Flashcards Pro",
+  "description": "A high-performance offline-capable flashcard app for JEE preparation with LaTeX support, search, and progress tracking.",
+  "requestFramePermissions": []
+}
