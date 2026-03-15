@@ -1,6 +1,6 @@
 import { QuizQuestion, QuizOption } from '../types';
 
-const DATA_URL = './quiz.json';
+const DATA_URL = `${import.meta.env.BASE_URL}quiz.json`;
 const STORAGE_KEY = 'jee_flashcards_cache_v2'; // Bumped version for new data structure
 
 // Fallback data in case local fetch fails (e.g. if file not served correctly in some envs)
