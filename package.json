@@ -10,11 +10,13 @@
   },
   "dependencies": {
     "framer-motion": "^12.23.26",
-    "lucide-react": "^0.560.0",
-    "react": "^19.2.3",
-    "react-dom": "^19.2.3",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^4.2.0",
     "katex": "^0.16.27",
-    "marked": "12.0.0"
+    "lucide-react": "^0.560.0",
+    "marked": "12.0.0",
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",

@@ -1,8 +1,11 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Download, Search, RefreshCw, ArrowLeft, ArrowRight, Menu, X, Database, Filter, Hash } from 'lucide-react';
+import html2canvas from 'html2canvas';
+import { jsPDF } from 'jspdf';
 import { fetchQuestions } from './services/dataService';
 import { QuizQuestion, FetchStatus } from './types';
 import Flashcard from './components/Flashcard';
+import LatexRenderer from './components/LatexRenderer';
 
 const App: React.FC = () => {
   // State
@@ -108,14 +111,44 @@ const App: React.FC = () => {
     }
   };
 
-  const handleExport = () => {
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(filteredQuestions, null, 2));
-    const downloadAnchorNode = document.createElement('a');
-    downloadAnchorNode.setAttribute("href", dataStr);
-    downloadAnchorNode.setAttribute("download", `jee_questions_${selectedSubject.toLowerCase()}_export.json`);
-    document.body.appendChild(downloadAnchorNode);
-    downloadAnchorNode.click();
-    downloadAnchorNode.remove();
+  const handleExport = async () => {
+    if (!activeQuestion) return;
+    
+    const element = document.getElementById('pdf-export-area');
+    if (!element) return;
+
+    try {
+      // Temporarily make it visible for html2canvas to render properly
+      element.style.left = '0px';
+      element.style.top = '0px';
+      element.style.zIndex = '-100';
+      element.style.opacity = '1';
+
+      const canvas = await html2canvas(element, { 
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#0f172a'
+      });
+      
+      // Hide it again
+      element.style.left = '-9999px';
+      element.style.opacity = '0';
+
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+      
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      pdf.save(`jee_question_${activeQuestion.id}.pdf`);
+    } catch (error) {
+      console.error('Error generating PDF', error);
+      alert('Failed to generate PDF. Please try again.');
+      
+      // Ensure it's hidden even on error
+      element.style.left = '-9999px';
+      element.style.opacity = '0';
+    }
   };
 
   // Keyboard Navigation
@@ -195,7 +228,7 @@ const App: React.FC = () => {
              <button 
                onClick={handleExport}
                className="p-2 rounded-full hover:bg-white/10 text-slate-400 hover:text-white transition"
-               title="Export Filtered Questions"
+               title="Export Question as PDF"
              >
                <Download className="w-5 h-5" />
              </button>
@@ -390,7 +423,7 @@ const App: React.FC = () => {
                  onClick={handleExport}
                  className="w-full flex items-center justify-center gap-2 bg-slate-800 py-3 rounded-lg text-slate-200 hover:bg-slate-700 font-medium"
                >
-                 <Download className="w-5 h-5" /> Export JSON
+                 <Download className="w-5 h-5" /> Export PDF
                </button>
                
                <button 
@@ -408,6 +441,59 @@ const App: React.FC = () => {
       <div className="absolute top-0 left-0 w-full h-full overflow-hidden -z-10 pointer-events-none">
           <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-blue-600/10 rounded-full blur-[120px]" />
           <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-emerald-600/10 rounded-full blur-[120px]" />
+      </div>
+
+      {/* Hidden Printable Area for PDF Export */}
+      <div 
+        id="pdf-export-area" 
+        className="absolute left-[-9999px] top-0 w-[800px] bg-slate-900 text-white p-10 font-sans opacity-0 pointer-events-none"
+      >
+        {activeQuestion && (
+          <div>
+            <div className="mb-6 pb-4 border-b border-slate-700">
+              <h1 className="text-2xl font-bold text-blue-400 mb-2">JEE Flashcards - {activeQuestion.subject}</h1>
+              <p className="text-slate-400">Question ID: {activeQuestion.id}</p>
+            </div>
+            
+            <div className="mb-8">
+              <h2 className="text-xl font-semibold text-slate-300 mb-4">Question:</h2>
+              <div className="text-lg leading-relaxed">
+                <LatexRenderer text={activeQuestion.question} block={true} />
+              </div>
+              
+              {activeQuestion.options && activeQuestion.options.length > 0 && (
+                <div className="w-full space-y-3 mt-6">
+                  {activeQuestion.options.map((opt, idx) => (
+                    <div key={idx} className="flex items-start p-3 rounded-lg bg-white/5 border border-white/5">
+                      <span className="font-mono text-xs text-blue-400 mr-3 mt-1 shrink-0">
+                        {String.fromCharCode(65 + idx)}.
+                      </span>
+                      <div className="text-base text-slate-200">
+                        <LatexRenderer text={opt.text} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="mb-8">
+              <h2 className="text-xl font-semibold text-emerald-400 mb-4">Answer:</h2>
+              <div className="text-2xl font-bold mb-4">
+                <LatexRenderer text={activeQuestion.answer} />
+              </div>
+              
+              {activeQuestion.solution && (
+                <div className="mt-6">
+                  <h3 className="text-lg font-semibold text-slate-300 mb-2">Explanation:</h3>
+                  <div className="text-base leading-relaxed text-slate-300">
+                    <LatexRenderer text={activeQuestion.solution} block={true} />
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
