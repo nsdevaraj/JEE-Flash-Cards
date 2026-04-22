@@ -1,7 +1,7 @@
 import { QuizQuestion, QuizOption } from '../types';
 
-const DATA_URL = `${import.meta.env.BASE_URL}quiz.json`;
-const STORAGE_KEY = 'jee_flashcards_cache_v2'; // Bumped version for new data structure
+const DATA_URL = `${import.meta.env.BASE_URL}mathnet.json`;
+const STORAGE_KEY = 'jee_flashcards_cache_v3'; // Bumped version for new data structure
 
 // Fallback data in case local fetch fails (e.g. if file not served correctly in some envs)
 const FALLBACK_DATA: QuizQuestion[] = [
@@ -19,16 +19,20 @@ const mapSubject = (shortSubject: string): string => {
   const map: Record<string, string> = {
     'phy': 'Physics',
     'chem': 'Chemistry',
-    'math': 'Mathematics'
+    'math': 'Mathematics',
+    'Algebra': 'Algebra',
+    'Geometry': 'Geometry',
+    'Number Theory': 'Number Theory',
+    'Discrete Mathematics': 'Discrete Mathematics'
   };
-  return map[shortSubject?.toLowerCase()] || shortSubject || 'General';
+  return map[shortSubject] || map[shortSubject?.toLowerCase()] || shortSubject || 'General';
 };
 
 /**
  * Normalizes JEE Question Bank JSON data into our strict QuizQuestion format.
  */
 const normalizeData = (data: any): QuizQuestion[] => {
-  // The JEE json has a root "questions" array
+  // The JEE json has a root "questions" array, MathNet format is direct array
   const list = Array.isArray(data.questions) ? data.questions : (Array.isArray(data) ? data : []);
 
   return list.map((item: any, index: number): QuizQuestion | null => {
@@ -36,15 +40,15 @@ const normalizeData = (data: any): QuizQuestion[] => {
 
     // Use 'gold' as answer, 'index' as ID
     const qText = item.question || "Question Text Missing";
-    const answer = item.gold || item.answer || "";
+    const answer = item.gold || item.answer || "See Solution";
     const subject = mapSubject(item.subject);
     
     // In this dataset, options are often embedded in the question text or not provided separately.
     // We will keep options empty and let the Question renderer handle the full text.
-    const options: QuizOption[] = [];
+    const options: QuizOption[] = item.options || [];
 
     // Ensure ID is a number
-    const idVal = Number(item.index);
+    const idVal = Number(item.index || item.id);
     const finalId = !isNaN(idVal) && idVal !== 0 ? idVal : index + 1;
 
     return {

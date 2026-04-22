@@ -39,7 +39,7 @@ const App: React.FC = () => {
   const subjects = useMemo(() => {
     const uniqueSubjects = new Set(questions.map(q => q.subject).filter(Boolean));
     // Ensure common subjects are prioritized if they exist
-    const common = ['phy', 'chem', 'math'];
+    const common = ['Geometry', 'Algebra', 'Discrete Mathematics', 'Number Theory'];
     const sorted = Array.from(uniqueSubjects).sort();
     return ['All', ...sorted];
   }, [questions]);
