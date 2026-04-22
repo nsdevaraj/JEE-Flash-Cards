@@ -5,4 +5,5 @@ const fsData = fs.readFileSync('dataset.parquet');
 const buffer = new Uint8Array(fsData).buffer;
 
 const md = parquetMetadata(buffer);
-console.log(JSON.stringify(md.schema, null, 2));
+console.log("Num rows:", Number(md.num_rows));
+console.log("Schema:", md.schema.map(f => f.name));
