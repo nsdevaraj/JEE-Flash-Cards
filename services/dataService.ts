@@ -1,4 +1,9 @@
 import { QuizQuestion, QuizOption } from '../types';
+import { parquetRead } from 'hyparquet';
+import { Buffer } from 'buffer';
+
+window.Buffer = window.Buffer || Buffer;
+
 
 const DATA_URL = `${import.meta.env.BASE_URL}mathnet.json`;
 const STORAGE_KEY = 'jee_flashcards_cache_v3'; // Bumped version for new data structure
@@ -17,15 +22,21 @@ const FALLBACK_DATA: QuizQuestion[] = [
 
 const mapSubject = (shortSubject: string): string => {
   const map: Record<string, string> = {
-    'phy': 'Physics',
-    'chem': 'Chemistry',
-    'math': 'Mathematics',
-    'Algebra': 'Algebra',
-    'Geometry': 'Geometry',
-    'Number Theory': 'Number Theory',
-    'Discrete Mathematics': 'Discrete Mathematics'
+    'algebra': 'Algebra',
+    'geometry': 'Geometry',
+    'number theory': 'Number Theory',
+    'discrete mathematics': 'Discrete Mathematics',
+    'combinatorics': 'Counting & Probability',
+    'counting & probability': 'Counting & Probability',
+    'prealgebra': 'Prealgebra',
+    'precalculus': 'Precalculus',
+    'intermediate algebra': 'Intermediate Algebra'
   };
-  return map[shortSubject] || map[shortSubject?.toLowerCase()] || shortSubject || 'General';
+  const lower = (shortSubject || '').toLowerCase();
+  for (const [key, value] of Object.entries(map)) {
+      if (lower.includes(key)) return value;
+  }
+  return 'Algebra'; // default fallback
 };
 
 /**
@@ -64,20 +75,56 @@ const normalizeData = (data: any): QuizQuestion[] => {
 
 export const fetchQuestions = async (): Promise<QuizQuestion[]> => {
   try {
-    const response = await fetch(DATA_URL);
+    const DATA_URL_PARQUET = `${import.meta.env.BASE_URL}dataset.parquet`;
+    const response = await fetch(DATA_URL_PARQUET);
     if (!response.ok) {
         throw new Error(`Network response was not ok: ${response.status}`);
     }
     
-    const rawData = await response.json();
-    const normalizedData = normalizeData(rawData);
+    const arrayBuffer = await response.arrayBuffer();
     
-    if (normalizedData.length === 0) {
-         throw new Error("Parsed data resulted in 0 valid questions");
-    }
+    return new Promise((resolve, reject) => {
+        const parsed: any[] = [];
+        parquetRead({
+            file: arrayBuffer,
+            rowFormat: 'object',
+            onComplete: (data) => {
+                for (let j = 0; j < data.length; j++) {
+                    let row = data[j];
+                    const rawTopics = row.topics || row.topics_flat || [];
+                    const topics = Array.isArray(rawTopics) ? rawTopics : [rawTopics];
+                    let problem = Array.isArray(row.problem_markdown) ? row.problem_markdown.join('\n') : String(row.problem_markdown || row.original_problem_markdown || '');
+                    let answerList = row.final_answer || [];
+                    let answer = Array.isArray(answerList) ? answerList.join('\n') : String(answerList);
+                    if (!answer || answer.length < 2 || answer === "undefined" || answer === "null") answer = "Detailed Solution Provided";
+                    const solutionList = row.solutions_markdown || [];
+                    let solution = Array.isArray(solutionList) ? solutionList.join('\n') : String(solutionList);
 
-    console.log(`Loaded ${normalizedData.length} questions from local JSON.`);
-    return normalizedData;
+                    if (!problem || problem.length < 10) continue;
+
+                    let subject = "Other";
+                    const ts = JSON.stringify(topics).toLowerCase();
+                    subject = mapSubject(ts);
+
+                    parsed.push({
+                        id: parsed.length + 1,
+                        subject: subject,
+                        question: problem,
+                        options: [],
+                        answer: answer,
+                        solution: solution
+                    });
+                }
+                const normalizedData = normalizeData(parsed);
+                if (normalizedData.length === 0) {
+                    reject(new Error("Parsed data resulted in 0 valid questions"));
+                } else {
+                    console.log(`Loaded ${normalizedData.length} questions from parquet.`);
+                    resolve(normalizedData);
+                }
+            }
+        }).catch(reject);
+    });
 
   } catch (error) {
     console.warn("Fetch failed, attempting to load from cache or fallback...", error);

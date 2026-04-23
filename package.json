@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "buffer": "^6.0.3",
     "framer-motion": "^12.23.26",
     "html2canvas": "^1.4.1",
     "hyparquet": "^1.25.6",
